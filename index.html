@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard Profil Universitas Bengkulu</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#f4f6fa;--card:#fff;--tx:#1b2430;--mut:#5b6675;--pri:#0b5cad;--line:#d9dfe8;--warn:#c62828}
+@media (prefers-color-scheme:dark){:root{--bg:#10151c;--card:#19212b;--tx:#e8edf3;--mut:#9aa7b6;--pri:#5aa9f0;--line:#2a3441;--warn:#ff6b6b}}
+*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--tx)}
+header{padding:16px 20px;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);background:var(--card)}
+h1{font-size:1.2rem;margin:0}h2{font-size:1rem;margin:0 0 8px}
+.sub{color:var(--mut);font-size:.85rem}
+main{max-width:1100px;margin:auto;padding:16px;display:grid;gap:16px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--mut);gap:2px}
+select,button{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--tx);cursor:pointer}
+button.p{background:var(--pri);color:#fff;border-color:var(--pri)}
+select:focus-visible,button:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi b{display:block;font-size:1.8rem;color:var(--pri)}.kpi span{color:var(--mut);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.chart{position:relative;height:280px}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{padding:8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}
+th{cursor:pointer;color:var(--mut)}tr.sel td{background:rgba(11,92,173,.12)}
+.wrap{overflow-x:auto}
+#status{font-size:.85rem;color:var(--mut);min-height:1.3em}
+dialog{max-width:520px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--tx)}
+.note{font-size:.8rem;color:var(--warn)}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dashboard Profil Universitas Bengkulu</h1>
+    <div class="sub">Prototipe skripsi: User-Centered Design + Evaluasi Heuristik Nielsen</div>
+  </div>
+  <button id="help" aria-label="Buka bantuan">? Bantuan</button>
+</header>
+<main>
+  <div class="card bar" role="group" aria-label="Filter data">
+    <label>Fakultas
+      <select id="fak"></select>
+    </label>
+    <label>Tahun
+      <select id="yr"></select>
+    </label>
+    <button id="reset">Atur ulang filter</button>
+    <button id="csv" class="p">Unduh CSV</button>
+  </div>
+  <div id="status" role="status" aria-live="polite"></div>
+
+  <section class="kpis" aria-label="Ringkasan"></section>
+
+  <div class="grid">
+    <section class="card"><h2 id="t1"></h2><div class="chart"><canvas id="c1" role="img" aria-label="Grafik garis tren mahasiswa"></canvas></div></section>
+    <section class="card"><h2 id="t2"></h2><div class="chart"><canvas id="c2" role="img" aria-label="Grafik batang mahasiswa per fakultas"></canvas></div></section>
+  </div>
+
+  <section class="card" id="detail" aria-live="polite"></section>
+
+  <section class="card wrap">
+    <h2>Tabel Data (klik judul kolom untuk mengurutkan)</h2>
+    <table id="tbl"></table>
+  </section>
+  <p class="note">Catatan: data di bawah adalah DATA CONTOH untuk keperluan prototipe. Ganti dengan data resmi (PDDikti / Biro Akademik UNIB) pada objek <code>DATA</code> di berkas ini.</p>
+</main>
+
+<dialog id="dlg">
+  <h2>Bantuan</h2>
+  <ul>
+    <li>Pilih <b>Fakultas</b> dan <b>Tahun</b> untuk menyaring data.</li>
+    <li>Klik batang pada grafik untuk melihat rincian fakultas.</li>
+    <li>Arahkan kursor ke grafik untuk angka akurat.</li>
+    <li>Klik judul kolom tabel untuk mengurutkan.</li>
+    <li><b>Atur ulang filter</b> mengembalikan tampilan awal.</li>
+    <li><b>Unduh CSV</b> menyimpan data sesuai filter.</li>
+  </ul>
+  <button id="close" class="p">Tutup</button>
+</dialog>
+
+<script>
+/* ===== DATA CONTOH (ganti dengan data resmi) ===== */
+const YEARS=[2021,2022,2023,2024,2025];
+const DATA=[
+ {n:"Pertanian",     m:[3300,3350,3420,3480,3550],d:128,p:9},
+ {n:"Hukum",         m:[1900,1950,2010,2050,2100],d:62, p:3},
+ {n:"Ekonomi dan Bisnis",m:[2800,2900,2980,3050,3120],d:95,p:6},
+ {n:"Keguruan dan Ilmu Pendidikan",m:[4100,4200,4260,4330,4400],d:180,p:12},
+ {n:"Teknik",        m:[2600,2700,2800,2880,2960],d:110,p:7},
+ {n:"Ilmu Sosial dan Ilmu Politik",m:[1700,1750,1800,1850,1890],d:70,p:4},
+ {n:"MIPA",          m:[1500,1560,1620,1670,1720],d:98,p:6},
+ {n:"Kedokteran dan Ilmu Kesehatan",m:[1300,1380,1460,1530,1600],d:120,p:5}
+];
+/* ================================================= */
+const $=s=>document.querySelector(s),fmt=n=>n.toLocaleString("id-ID");
+const st={fak:"all",yr:YEARS.at(-1)};let c1,c2,sortKey="m",sortDir=-1;
+const yi=()=>YEARS.indexOf(st.yr);
+const rows=()=>DATA.map(x=>({n:x.n,m:x.m[yi()],d:x.d,p:x.p,r:Math.round(x.m[yi()]/x.d)}));
+const sel=()=>st.fak==="all"?rows():rows().filter(r=>r.n===st.fak);
+const say=t=>$("#status").textContent=t;
+
+$("#fak").innerHTML='<option value="all">Semua fakultas</option>'+DATA.map(x=>`<option>${x.n}</option>`).join("");
+$("#yr").innerHTML=YEARS.map(y=>`<option ${y===st.yr?"selected":""}>${y}</option>`).join("");
+
+function kpis(){
+  const s=sel(),M=s.reduce((a,r)=>a+r.m,0),D=s.reduce((a,r)=>a+r.d,0),P=s.reduce((a,r)=>a+r.p,0);
+  const prev=st.fak==="all"?DATA.reduce((a,x)=>a+(x.m[yi()-1]??0),0):DATA.find(x=>x.n===st.fak).m[yi()-1];
+  const g=yi()>0?((M-prev)/prev*100).toFixed(1)+"% dibanding tahun sebelumnya":"Tahun data pertama";
+  document.querySelector(".kpis").innerHTML=[
+    [fmt(M),"Mahasiswa aktif ("+g+")"],[fmt(D),"Dosen"],[P,"Program studi"],["1 : "+Math.round(M/D),"Rasio dosen : mahasiswa"]
+  ].map(k=>`<div class="card kpi"><b>${k[0]}</b><span>${k[1]}</span></div>`).join("");
+}
+function charts(){
+  const tot=YEARS.map((_,i)=>(st.fak==="all"?DATA:DATA.filter(x=>x.n===st.fak)).reduce((a,x)=>a+x.m[i],0));
+  $("#t1").textContent="Tren mahasiswa "+YEARS[0]+"–"+YEARS.at(-1)+(st.fak==="all"?" (seluruh UNIB)":" ("+st.fak+")");
+  $("#t2").textContent="Mahasiswa per fakultas, "+st.yr+" (klik batang untuk rincian)";
+  c1&&c1.destroy();c2&&c2.destroy();
+  const css=getComputedStyle(document.body),tx=css.getPropertyValue("--mut"),pri=css.getPropertyValue("--pri").trim(),ln=css.getPropertyValue("--line");
+  Chart.defaults.color=tx;
+  c1=new Chart($("#c1"),{type:"line",data:{labels:YEARS,datasets:[{label:"Mahasiswa",data:tot,borderColor:pri,backgroundColor:pri,tension:.25}]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:ln}},x:{grid:{display:false}}}}});
+  const r=rows().sort((a,b)=>b.m-a.m);
+  c2=new Chart($("#c2"),{type:"bar",data:{labels:r.map(x=>x.n.length>16?x.n.slice(0,15)+"…":x.n),datasets:[{label:"Mahasiswa",data:r.map(x=>x.m),
+    backgroundColor:r.map(x=>st.fak==="all"||x.n===st.fak?pri:ln)}]},
+    options:{indexAxis:"y",maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>r[i[0].dataIndex].n}}},
+      scales:{x:{grid:{color:ln}},y:{grid:{display:false}}},
+      onClick:(e,el)=>{if(el.length){setFak(r[el[0].index].n)}}}});
+}
+function detail(){
+  const d=$("#detail");
+  if(st.fak==="all"){d.innerHTML="<h2>Rincian</h2><p class='sub'>Pilih fakultas (filter atau klik batang grafik) untuk melihat rincian.</p>";return}
+  const x=rows().find(r=>r.n===st.fak);
+  d.innerHTML=`<h2>Rincian: ${x.n} (${st.yr})</h2><p>Mahasiswa <b>${fmt(x.m)}</b> · Dosen <b>${x.d}</b> · Prodi <b>${x.p}</b> · Rasio dosen:mahasiswa <b>1 : ${x.r}</b></p>`;
+}
+function table(){
+  const r=sel().sort((a,b)=>sortDir*(sortKey==="n"?a.n.localeCompare(b.n):a[sortKey]-b[sortKey]));
+  const H=[["n","Fakultas"],["m","Mahasiswa"],["d","Dosen"],["p","Prodi"],["r","Mhs/Dosen"]];
+  $("#tbl").innerHTML="<thead><tr>"+H.map(h=>`<th data-k="${h[0]}" tabindex="0" aria-sort="${sortKey===h[0]?(sortDir>0?"ascending":"descending"):"none"}">${h[1]}${sortKey===h[0]?(sortDir>0?" ▲":" ▼"):""}</th>`).join("")+"</tr></thead><tbody>"+
+    r.map(x=>`<tr class="${x.n===st.fak?"sel":""}"><td>${x.n}</td><td>${fmt(x.m)}</td><td>${x.d}</td><td>${x.p}</td><td>${x.r}</td></tr>`).join("")+"</tbody>";
+  document.querySelectorAll("th").forEach(th=>{const f=()=>{const k=th.dataset.k;sortDir=sortKey===k?-sortDir:-1;sortKey=k;table()};th.onclick=f;th.onkeydown=e=>{if(e.key==="Enter")f()}});
+}
+function render(msg){kpis();charts();detail();table();say(msg||"Data diperbarui: "+(st.fak==="all"?"semua fakultas":st.fak)+", tahun "+st.yr+".")}
+function setFak(v){st.fak=v;$("#fak").value=v;render()}
+$("#fak").onchange=e=>setFak(e.target.value);
+$("#yr").onchange=e=>{st.yr=+e.target.value;render()};
+$("#reset").onclick=()=>{st={fak:"all",yr:YEARS.at(-1)};$("#fak").value="all";$("#yr").value=st.yr;render("Filter dikembalikan ke tampilan awal.")};
+$("#csv").onclick=()=>{
+  const r=sel(),csv="Fakultas,Tahun,Mahasiswa,Dosen,Prodi\n"+r.map(x=>`"${x.n}",${st.yr},${x.m},${x.d},${x.p}`).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=`profil-unib-${st.yr}.csv`;a.click();say("Berkas CSV berhasil diunduh.");
+};
+$("#help").onclick=()=>$("#dlg").showModal();$("#close").onclick=()=>$("#dlg").close();
+render("Dashboard siap digunakan.");
+</script>
+</body>
+</html>
